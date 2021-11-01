@@ -1,0 +1,99 @@
+From 9fcf3200342603e9aa86a4bd3ba62f890237a200 Mon Sep 17 00:00:00 2001
+From: Kamil Dudka <kdudka@redhat.com>
+Date: Tue, 26 Jul 2016 12:58:46 +0200
+Subject: [PATCH] nghttpx: avoid using std::function to fix crash on armv7hl
+
+Bug: https://bugzilla.redhat.com/1358845
+---
+ src/shrpx_client_handler.cc             | 8 ++++----
+ src/shrpx_client_handler.h              | 6 ++++--
+ src/shrpx_http_downstream_connection.cc | 6 +++---
+ src/shrpx_http_downstream_connection.h  | 5 +++--
+ 4 files changed, 14 insertions(+), 11 deletions(-)
+
+diff --git a/src/shrpx_client_handler.cc b/src/shrpx_client_handler.cc
+index 2c9b2a1..890143e 100644
+--- a/src/shrpx_client_handler.cc
++++ b/src/shrpx_client_handler.cc
+@@ -654,12 +654,12 @@ int ClientHandler::validate_next_proto() {
+   return -1;
+ }
+ 
+-int ClientHandler::do_read() { return read_(*this); }
+-int ClientHandler::do_write() { return write_(*this); }
++int ClientHandler::do_read() { return (this->*read_)(); }
++int ClientHandler::do_write() { return (this->*write_)(); }
+ 
+ int ClientHandler::on_read() {
+   if (rb_.chunk_avail()) {
+-    auto rv = on_read_(*this);
++    auto rv = (this->*on_read_)();
+     if (rv != 0) {
+       return rv;
+     }
+@@ -667,7 +667,7 @@ int ClientHandler::on_read() {
+   conn_.handle_tls_pending_read();
+   return 0;
+ }
+-int ClientHandler::on_write() { return on_write_(*this); }
++int ClientHandler::on_write() { return (this->*on_write_)(); }
+ 
+ const StringRef &ClientHandler::get_ipaddr() const { return ipaddr_; }
+ 
+diff --git a/src/shrpx_client_handler.h b/src/shrpx_client_handler.h
+index bdfdafd..08f42b3 100644
+--- a/src/shrpx_client_handler.h
++++ b/src/shrpx_client_handler.h
+@@ -185,8 +185,10 @@ private:
+   StringRef forwarded_for_;
+   // lowercased TLS SNI which client sent.
+   StringRef sni_;
+-  std::function<int(ClientHandler &)> read_, write_;
+-  std::function<int(ClientHandler &)> on_read_, on_write_;
++  int (ClientHandler::*read_)();
++  int (ClientHandler::*write_)();
++  int (ClientHandler::*on_read_)();
++  int (ClientHandler::*on_write_)();
+   // Address of frontend listening socket
+   const UpstreamAddr *faddr_;
+   Worker *worker_;
+diff --git a/src/shrpx_http_downstream_connection.cc b/src/shrpx_http_downstream_connection.cc
+index 077844c..8a38788 100644
+--- a/src/shrpx_http_downstream_connection.cc
++++ b/src/shrpx_http_downstream_connection.cc
+@@ -1448,13 +1448,13 @@ int HttpDownstreamConnection::connected() {
+   return 0;
+ }
+ 
+-int HttpDownstreamConnection::on_read() { return on_read_(*this); }
++int HttpDownstreamConnection::on_read() { return (this->*on_read_)(); }
+ 
+-int HttpDownstreamConnection::on_write() { return on_write_(*this); }
++int HttpDownstreamConnection::on_write() { return (this->*on_write_)(); }
+ 
+ void HttpDownstreamConnection::on_upstream_change(Upstream *upstream) {}
+ 
+-void HttpDownstreamConnection::signal_write() { signal_write_(*this); }
++void HttpDownstreamConnection::signal_write() { (this->*signal_write_)(); }
+ 
+ int HttpDownstreamConnection::actual_signal_write() {
+   ev_feed_event(conn_.loop, &conn_.wev, EV_WRITE);
+diff --git a/src/shrpx_http_downstream_connection.h b/src/shrpx_http_downstream_connection.h
+index 8fad535..0ab430c 100644
+--- a/src/shrpx_http_downstream_connection.h
++++ b/src/shrpx_http_downstream_connection.h
+@@ -91,8 +91,9 @@ public:
+ 
+ private:
+   Connection conn_;
+-  std::function<int(HttpDownstreamConnection &)> on_read_, on_write_,
+-      signal_write_;
++  int (HttpDownstreamConnection::*on_read_)();
++  int (HttpDownstreamConnection::*on_write_)();
++  int (HttpDownstreamConnection::*signal_write_)();
+   Worker *worker_;
+   // nullptr if TLS is not used.
+   SSL_CTX *ssl_ctx_;
+-- 
+2.5.5
+
