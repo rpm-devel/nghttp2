@@ -1,15 +1,13 @@
-Summary: Experimental HTTP/2 client, server and proxy
+Summary: HTTP/2 C library and tools
 Name: nghttp2
-Version: 1.21.1
+Version: 1.69.0
 Release: 1%{?dist}
 License: MIT
-Group: Applications/Internet
 URL: https://nghttp2.org/
-Source0: https://github.com/tatsuhiro-t/nghttp2/releases/download/v%{version}/nghttp2-%{version}.tar.xz
+Source0: https://github.com/nghttp2/nghttp2/releases/download/v%{version}/%{name}-%{version}.tar.xz
 
-# prevent nghttpx from crashing on armv7hl (#1358845)
-Patch1:  0001-nghttp2-1.13.0-armv7hl-sigsegv.patch
-
+BuildRequires: gcc
+BuildRequires: make
 BuildRequires: CUnit-devel
 BuildRequires: c-ares-devel
 BuildRequires: libev-devel
@@ -19,6 +17,7 @@ BuildRequires: zlib-devel
 
 Requires: libnghttp2%{?_isa} = %{version}-%{release}
 %{?systemd_requires}
+Obsoletes: nghttp2 < %{version}-%{release}
 
 %description
 This package contains the HTTP/2 client, server and proxy programs.
@@ -26,7 +25,7 @@ This package contains the HTTP/2 client, server and proxy programs.
 
 %package -n libnghttp2
 Summary: A library implementing the HTTP/2 protocol
-Group: Development/Libraries
+Obsoletes: libnghttp2 < %{version}-%{release}
 
 %description -n libnghttp2
 libnghttp2 is a library implementing the Hypertext Transfer Protocol
@@ -35,9 +34,9 @@ version 2 (HTTP/2) protocol in C.
 
 %package -n libnghttp2-devel
 Summary: Files needed for building applications with libnghttp2
-Group: Development/Libraries
 Requires: libnghttp2%{?_isa} = %{version}-%{release}
 Requires: pkgconfig
+Obsoletes: libnghttp2-devel < %{version}-%{release}
 
 %description -n libnghttp2-devel
 The libnghttp2-devel package includes libraries and header files needed
@@ -46,7 +45,6 @@ for building applications with libnghttp2.
 
 %prep
 %setup -q
-%patch1 -p1
 
 
 %build
@@ -75,9 +73,7 @@ rm -f "$RPM_BUILD_ROOT%{_libdir}/libnghttp2.la"
 # will be installed via %%doc
 rm -f "$RPM_BUILD_ROOT%{_datadir}/doc/nghttp2/README.rst"
 
-%post -n libnghttp2 -p /sbin/ldconfig
-
-%postun -n libnghttp2 -p /sbin/ldconfig
+%ldconfig_scriptlets -n libnghttp2
 
 %post
 %systemd_post nghttpx.service
@@ -106,7 +102,6 @@ make %{?_smp_mflags} check
 
 %files -n libnghttp2
 %{_libdir}/libnghttp2.so.*
-%{!?_licensedir:%global license %%doc}
 %license COPYING
 
 %files -n libnghttp2-devel
@@ -117,6 +112,12 @@ make %{?_smp_mflags} check
 
 
 %changelog
+* Fri Apr 24 2026 CasjaysDev <rpm-devel@casjaysdev.pro> - 1.69.0-1
+- Update to 1.69.0
+- Modernize spec for EL10 (remove Group, use ldconfig_scriptlets)
+- Remove armv7hl-specific patch
+- Use nghttp2 org URL for Source0
+
 * Mon Apr 10 2017 Kamil Dudka <kdudka@redhat.com> 1.21.1-1
 - update to the latest upstream release
 
