@@ -65,13 +65,13 @@ make %{?_smp_mflags} V=1
 %install
 %make_install
 install -D -m0444 -p contrib/nghttpx.service \
-    "$RPM_BUILD_ROOT%{_unitdir}/nghttpx.service"
+    "%{buildroot}%{_unitdir}/nghttpx.service"
 
 # not needed on Fedora/RHEL
-rm -f "$RPM_BUILD_ROOT%{_libdir}/libnghttp2.la"
+rm -f "%{buildroot}%{_libdir}/libnghttp2.la"
 
 # will be installed via %%doc
-rm -f "$RPM_BUILD_ROOT%{_datadir}/doc/nghttp2/README.rst"
+rm -f "%{buildroot}%{_datadir}/doc/nghttp2/README.rst"
 
 %ldconfig_scriptlets -n libnghttp2
 
@@ -84,7 +84,7 @@ rm -f "$RPM_BUILD_ROOT%{_datadir}/doc/nghttp2/README.rst"
 
 %check
 # test the just built library instead of the system one, without using rpath
-export "LD_LIBRARY_PATH=$RPM_BUILD_ROOT%{_libdir}:$LD_LIBRARY_PATH"
+export "LD_LIBRARY_PATH=%{buildroot}%{_libdir}:$LD_LIBRARY_PATH"
 make %{?_smp_mflags} check
 
 
@@ -112,6 +112,9 @@ make %{?_smp_mflags} check
 
 
 %changelog
+* Fri May 22 2026 CasjaysDev <rpm-devel@casjaysdev.pro> - 1.69.0-1
+- Fix spec violations: use %{buildroot}, %global for constants
+
 * Fri Apr 24 2026 CasjaysDev <rpm-devel@casjaysdev.pro> - 1.69.0-1
 - Update to 1.69.0
 - Modernize spec for EL10 (remove Group, use ldconfig_scriptlets)
