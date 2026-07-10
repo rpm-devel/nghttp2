@@ -4,15 +4,25 @@ Version: 1.69.0
 Release: 1%{?dist}
 License: MIT
 URL: https://nghttp2.org/
+ExclusiveArch: x86_64 aarch64
 Source0: https://github.com/nghttp2/nghttp2/releases/download/v%{version}/%{name}-%{version}.tar.xz
+
+%if 0%{?suse_version}
+%global cunit_pkg cunit-devel
+%global openssl_pkg libopenssl-devel
+%else
+%global cunit_pkg CUnit-devel
+%global openssl_pkg openssl-devel
+%endif
 
 BuildRequires: gcc
 BuildRequires: make
-BuildRequires: CUnit-devel
+BuildRequires: %{cunit_pkg}
 BuildRequires: c-ares-devel
 BuildRequires: libev-devel
-BuildRequires: openssl-devel
+BuildRequires: %{openssl_pkg}
 BuildRequires: systemd-devel
+BuildRequires: systemd-rpm-macros
 BuildRequires: zlib-devel
 
 Requires: libnghttp2%{?_isa} = %{version}-%{release}
@@ -44,7 +54,7 @@ for building applications with libnghttp2.
 
 
 %prep
-%setup -q
+%autosetup -p1
 
 
 %build
@@ -59,7 +69,7 @@ sed -i libtool                              \
     -e 's/^runpath_var=.*/runpath_var=/'    \
     -e 's/^hardcode_libdir_flag_spec=".*"$/hardcode_libdir_flag_spec=""/'
 
-make %{?_smp_mflags} V=1
+%make_build V=1
 
 
 %install
@@ -85,7 +95,7 @@ rm -f "%{buildroot}%{_datadir}/doc/nghttp2/README.rst"
 %check
 # test the just built library instead of the system one, without using rpath
 export "LD_LIBRARY_PATH=%{buildroot}%{_libdir}:$LD_LIBRARY_PATH"
-make %{?_smp_mflags} check
+%make_build check
 
 
 %files
@@ -112,6 +122,16 @@ make %{?_smp_mflags} check
 
 
 %changelog
+* Sat Jul 05 2026 CasjaysDev <rpm-devel@casjaysdev.pro> - 1.69.0-1
+- Guard CUnit-devel (cunit-devel on openSUSE/SLES) and openssl-devel
+  (libopenssl-devel on openSUSE/SLES) via %%if 0%%{?suse_version}
+- Verified c-ares-devel, libev-devel, systemd-devel, systemd-rpm-macros,
+  zlib-devel package names match across RHEL/Fedora/openSUSE; left unguarded
+
+* Thu Jul 03 2026 CasjaysDev <rpm-devel@casjaysdev.pro> - 1.69.0-1
+- Add ExclusiveArch: x86_64 aarch64; systemd-rpm-macros BuildRequires
+- %%autosetup -p1; %%make_build V=1; %%make_build check
+
 * Fri May 22 2026 CasjaysDev <rpm-devel@casjaysdev.pro> - 1.69.0-1
 - Fix spec violations: use %{buildroot}, %global for constants
 
